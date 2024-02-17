@@ -50,7 +50,7 @@ jobs:
       # https://github.com/docker/build-push-action
       - name: Build & Push
         run: 
-          docker build -t ${{ github.repository }}
+          docker build -t ${{ github.repository }} .
           docker push
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
