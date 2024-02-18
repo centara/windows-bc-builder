@@ -11,7 +11,7 @@ COPY install-choco.ps1 .
 RUN .\install-choco.ps1; Remove-Item .\install-choco.ps1 -Force
 
 # Enable windows containers
-RUN choco install Containers Microsoft-Hyper-V --source windowsfeatures
+RUN Get-WindowsOptionalFeature -Online -FeatureName Containers -ErrorAction SilentlyContinue
 
 # Install dependencies with Chocolatey
 RUN choco install -y \
