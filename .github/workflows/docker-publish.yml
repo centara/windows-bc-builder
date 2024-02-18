@@ -57,3 +57,11 @@ jobs:
           docker push ${{ env.REGISTRY }}/${{ github.repository }}:latest
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
+        
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: C:\ProgramData\chocolatey\logs\
+          path: C:\ProgramData\chocolatey\logs\
+          retention-days: 10
