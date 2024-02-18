@@ -1,13 +1,16 @@
-## If the env ALT_RUN_DIRECTORY is set
-# copy c:/actions-runner to $env:ALT_RUN_DIRECTORY
-# cd $env:ALT_RUN_DIRECTORY
-if ($null -ne $env:ALT_RUN_DIRECTORY) {
-  Write-Host "Copying runner to $env:ALT_RUN_DIRECTORY"
-  # If there is an error, SilentContinue
-  Copy-Item -Path "c:\actions-runner" -Destination $env:ALT_RUN_DIRECTORY -Recurse -Force -ErrorAction SilentlyContinue
-  Set-Location $env:ALT_RUN_DIRECTORY
+## On start Copy the c:\actions-runner to c:\actions\$ENV:COMPUTERNAME
+# and then set the working directory to c:\actions\$ENV:COMPUTERNAME
+# We are setting it to the c:\actions directory to avoid recursion while copying endless of fiels
+# and we set it to the c:\actions\$ENV:COMPUTERNAME to avoid conflicts with other runners and because
+# it's more easy to figure out for the volumes and the user where the runner is running
+if (-not (Test-Path -Path "C:\actions")) {
+  New-Item -Path "C:\actions" -ItemType "directory"
+  # Copy the runner to the actions directory and set the working directory
+  if (-not (Test-Path -Path "C:\actions\$ENV:COMPUTERNAME")) {
+    Copy-Item -Path "C:\actions-runner" -Destination "C:\actions\$ENV:COMPUTERNAME" -Recurse
+    Set-Location -Path "C:\actions\$ENV:COMPUTERNAME"
+  }
 }
-
 # Set the runner name
 if ($null -ne $env:RUNNER_NAME) {
   $RUNNER_NAME = $env:RUNNER_NAME
