@@ -10,17 +10,13 @@ WORKDIR /actions-runner
 COPY install-choco.ps1 .
 RUN .\install-choco.ps1; Remove-Item .\install-choco.ps1 -Force
 
-# Enable windows containers
-RUN Get-WindowsOptionalFeature -Online -FeatureName Containers -ErrorAction SilentlyContinue
-
 # Install dependencies with Chocolatey
 RUN choco install -y \
     git \
     gh \
     powershell-core \
     python \
-    docker-cli \
-    docker-engine
+    docker-cli
 
 # Add MSBuild to the path
 RUN [Environment]::SetEnvironmentVariable(\"Path\", $env:Path + \";C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\", \"Machine\")
