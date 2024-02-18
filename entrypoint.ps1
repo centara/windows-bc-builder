@@ -3,14 +3,11 @@
 # We are setting it to the c:\actions directory to avoid recursion while copying endless of fiels
 # and we set it to the c:\actions\$ENV:COMPUTERNAME to avoid conflicts with other runners and because
 # it's more easy to figure out for the volumes and the user where the runner is running
-if (-not (Test-Path -Path "C:\actions")) {
-  New-Item -Path "C:\actions" -ItemType "directory"
-  # Copy the runner to the actions directory and set the working directory
-  if (-not (Test-Path -Path "C:\actions\$ENV:COMPUTERNAME")) {
-    Copy-Item -Path "C:\actions-runner" -Destination "C:\actions\$ENV:COMPUTERNAME" -Recurse
-    Set-Location -Path "C:\actions\$ENV:COMPUTERNAME"
-  }
+if (-not (Test-Path -Path "C:\actions\$ENV:COMPUTERNAME")) {
+  Copy-Item -Path "C:\actions-runner" -Destination "C:\actions\$ENV:COMPUTERNAME" -Recurse
 }
+Set-Location -Path "C:\actions\$ENV:COMPUTERNAME"
+
 # Set the runner name
 if ($null -ne $env:RUNNER_NAME) {
   $RUNNER_NAME = $env:RUNNER_NAME
