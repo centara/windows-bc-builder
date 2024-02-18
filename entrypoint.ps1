@@ -1,3 +1,12 @@
+## If the env ALT_RUN_DIRECTORY is set
+# copy c:/actions-runner to $env:ALT_RUN_DIRECTORY
+# cd $env:ALT_RUN_DIRECTORY
+if ($null -ne $env:ALT_RUN_DIRECTORY) {
+  Write-Host "Copying runner to $env:ALT_RUN_DIRECTORY"
+  # If there is an error, SilentContinue
+  Copy-Item -Path "c:\actions-runner" -Destination $env:ALT_RUN_DIRECTORY -Recurse -Force -ErrorAction SilentlyContinue
+  Set-Location $env:ALT_RUN_DIRECTORY
+}
 
 # Set the runner name
 if ($null -ne $env:RUNNER_NAME) {
