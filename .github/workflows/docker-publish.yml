@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
@@ -59,7 +59,7 @@ jobs:
         # against the sigstore community Fulcio instance.
         
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: Logs
