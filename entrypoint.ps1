@@ -119,9 +119,15 @@ if ($null -ne $env:RUNNER_GROUP) {
 $EXTRA_ARGS=''
 
 # Disable auto update if set
-if ($null -ne $env:DISABLE_AUTO_UPDATE) { 
+if ($null -ne $env:DISABLE_AUTO_UPDATE) {
   Write-Host "Auto updating is disabled"
   $EXTRA_ARGS += " --disableupdate"
+}
+
+# Enable ephemeral mode if set
+if ($null -ne $env:EPHEMERAL) {
+  Write-Host "Ephemeral mode is enabled"
+  $EXTRA_ARGS += " --ephemeral"
 }
 
 try {
