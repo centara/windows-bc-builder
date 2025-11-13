@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/windows/servercore:ltsc2025
 
-ARG RUNNER_VERSION="2.311.0"
+# Optional: Override runner version (defaults to latest if not specified)
+ARG RUNNER_VERSION
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 
