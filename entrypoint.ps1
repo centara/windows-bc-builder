@@ -67,7 +67,7 @@ switch ($env:RUNNER_SCOPE) {
     } elseif ($null -ne $env:ACCESS_TOKEN) {
       $PATTERN = "https://(?:[^/]+/)?([^/]+)/([^/]+)"
       if ($env:REPO_URL -match $PATTERN) {
-        
+
         $OWNER = $Matches[1]
         $REPO = $Matches[2]
 
@@ -80,7 +80,7 @@ switch ($env:RUNNER_SCOPE) {
       exit
     }
     Write-Host "Setting up GitHub Self Hosted Runner for repository: $env:REPO_URL"
-    
+
     $CONFIG_URL = $env:REPO_URL
   }
 }
@@ -132,7 +132,14 @@ if ($null -ne $env:EPHEMERAL) {
 
 try {
   Write-Host "Configuring runner: $RUNNER_NAME"
-  ./config.cmd --unattended --replace --url $CONFIG_URL --token $RUNNER_TOKEN --name $RUNNER_NAME --labels $LABELS --runnergroup $RUNNER_GROUP $EXTRA_ARGS
+
+  # Check if JIT_CONFIG is provided (for ephemeral runners)
+  if ($null -ne $env:JIT_CONFIG) {
+    Write-Host "Using JIT configuration for ephemeral runner"
+    ./config.cmd --jitconfig $env:JIT_CONFIG
+  } else {
+    ./config.cmd --unattended --replace --url $CONFIG_URL --token $RUNNER_TOKEN --name $RUNNER_NAME --labels $LABELS --runnergroup $RUNNER_GROUP $EXTRA_ARGS
+  }
 
   # Remove access token for security reasons
   $env:ACCESS_TOKEN=$null
@@ -141,5 +148,12 @@ try {
 } catch {
   Write-Error $_.Exception.Message
 } finally {
-  ./config.cmd remove --unattended --token $RUNNER_TOKEN
+  # Ephemeral runners with JIT config automatically unregister after running one job
+  # Only manually remove non-JIT runners
+  if ($null -eq $env:JIT_CONFIG) {
+    Write-Host "Removing runner registration..."
+    ./config.cmd remove --unattended --token $RUNNER_TOKEN
+  } else {
+    Write-Host "Ephemeral runner completed - container will exit"
+  }
 }
