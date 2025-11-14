@@ -35,71 +35,76 @@ if ('github.com' -eq $GITHUB_HOST) {
   $URI = "https://$GITHUB_HOST/api/v3"
 }
 
-# Set the api to get the access token from
-switch ($env:RUNNER_SCOPE) {
-  org {
-    if ($null -eq $env:ORG_NAME) {
-      Write-Error "ORG_NAME required for organisational runners"
-      exit 1
-    }
-    Write-Host "Setting up GitHub Self Hosted Runner for organisation: $env:ORG_NAME"
-    $TOKEN_URL = "$URI/orgs/$env:ORG_NAME/actions/runners/registration-token"
-    $CONFIG_URL = "https://$GITHUB_HOST/$env:ORG_NAME"
-  }
-
-  enterprise {
-    if ($null -eq $env:ENTERPRISE_NAME) {
-      Write-Error "ENTERPRISE_NAME required for enterprise runners"
-      exit
-    }
-    Write-Host "Setting up GitHub Self Hosted Runner for enterprise: $env:ENTERPRISE_NAME"
-    $TOKEN_URL = "$URI/enterprises/$env:ENTERPRISE_NAME/actions/runners/registration-token"
-    $CONFIG_URL = "https://$GITHUB_HOST/enterprises/$env:ENTERPRISE_NAME"
-  }
-
-  default {
-    if ($null -eq $env:REPO_URL) {
-      Write-Error "REPO_URL required for repository runners"
-      exit
-    }
-    if ($null -ne $env:RUNNER_TOKEN) {
-      $RUNNER_TOKEN = $env:RUNNER_TOKEN
-    } elseif ($null -ne $env:ACCESS_TOKEN) {
-      $PATTERN = "https://(?:[^/]+/)?([^/]+)/([^/]+)"
-      if ($env:REPO_URL -match $PATTERN) {
-
-        $OWNER = $Matches[1]
-        $REPO = $Matches[2]
-
-        $TOKEN_URL = "$URI/repos/$OWNER/$REPO/actions/runners/registration-token"
-      } else {
-        Write-Error "URL format not recognized: $env:REPO_URL"
+# If JIT_CONFIG is provided, skip token generation entirely
+if ($null -eq $env:JIT_CONFIG) {
+  # Set the api to get the access token from
+  switch ($env:RUNNER_SCOPE) {
+    org {
+      if ($null -eq $env:ORG_NAME) {
+        Write-Error "ORG_NAME required for organisational runners"
+        exit 1
       }
-    } else {
-      Write-Error "ACCESS_TOKEN or RUNNER_TOKEN required for repository runners"
+      Write-Host "Setting up GitHub Self Hosted Runner for organisation: $env:ORG_NAME"
+      $TOKEN_URL = "$URI/orgs/$env:ORG_NAME/actions/runners/registration-token"
+      $CONFIG_URL = "https://$GITHUB_HOST/$env:ORG_NAME"
+    }
+
+    enterprise {
+      if ($null -eq $env:ENTERPRISE_NAME) {
+        Write-Error "ENTERPRISE_NAME required for enterprise runners"
+        exit
+      }
+      Write-Host "Setting up GitHub Self Hosted Runner for enterprise: $env:ENTERPRISE_NAME"
+      $TOKEN_URL = "$URI/enterprises/$env:ENTERPRISE_NAME/actions/runners/registration-token"
+      $CONFIG_URL = "https://$GITHUB_HOST/enterprises/$env:ENTERPRISE_NAME"
+    }
+
+    default {
+      if ($null -eq $env:REPO_URL) {
+        Write-Error "REPO_URL required for repository runners"
+        exit
+      }
+      if ($null -ne $env:RUNNER_TOKEN) {
+        $RUNNER_TOKEN = $env:RUNNER_TOKEN
+      } elseif ($null -ne $env:ACCESS_TOKEN) {
+        $PATTERN = "https://(?:[^/]+/)?([^/]+)/([^/]+)"
+        if ($env:REPO_URL -match $PATTERN) {
+
+          $OWNER = $Matches[1]
+          $REPO = $Matches[2]
+
+          $TOKEN_URL = "$URI/repos/$OWNER/$REPO/actions/runners/registration-token"
+        } else {
+          Write-Error "URL format not recognized: $env:REPO_URL"
+        }
+      } else {
+        Write-Error "ACCESS_TOKEN or RUNNER_TOKEN required for repository runners"
+        exit
+      }
+      Write-Host "Setting up GitHub Self Hosted Runner for repository: $env:REPO_URL"
+
+      $CONFIG_URL = $env:REPO_URL
+    }
+  }
+
+  if ($null -ne $TOKEN_URL) {
+    $HEADERS = @{
+      'Accept' = 'application/vnd.github.v3+json';
+      'Authorization' = "token $env:ACCESS_TOKEN";
+      'Content-Length' = '0';
+    }
+
+    try {
+      Write-Host "Obtaining the token for the runner"
+      $RUNNER_TOKEN = ((Invoke-WebRequest -Uri $TOKEN_URL -Method "POST" -Headers $HEADERS).Content | ConvertFrom-Json).token
+    }
+    catch {
+      Write-Error "Cannot obtain the token => $_.Exception.Message"
       exit
     }
-    Write-Host "Setting up GitHub Self Hosted Runner for repository: $env:REPO_URL"
-
-    $CONFIG_URL = $env:REPO_URL
   }
-}
-
-if ($null -ne $TOKEN_URL) {
-  $HEADERS = @{
-    'Accept' = 'application/vnd.github.v3+json';
-    'Authorization' = "token $env:ACCESS_TOKEN";
-    'Content-Length' = '0';
-  }
-
-  try {
-    Write-Host "Obtaining the token for the runner"
-    $RUNNER_TOKEN = ((Invoke-WebRequest -Uri $TOKEN_URL -Method "POST" -Headers $HEADERS).Content | ConvertFrom-Json).token
-  }
-  catch {
-    Write-Error "Cannot obtain the token => $_.Exception.Message"
-    exit
-  }
+} else {
+  Write-Host "Using provided JIT_CONFIG for runner configuration"
 }
 
 # Set the labels if given
