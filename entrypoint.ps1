@@ -136,46 +136,25 @@ if ($null -ne $env:EPHEMERAL) {
 }
 
 try {
-  Write-Host "Configuring runner: $RUNNER_NAME"
-
   # Check if JIT_CONFIG is provided (for ephemeral runners)
   if ($null -ne $env:JIT_CONFIG) {
     Write-Host "Using JIT configuration for ephemeral runner"
+    Write-Host "Skipping config.cmd - JIT config contains all configuration"
 
-    # Set CONFIG_URL based on RUNNER_SCOPE
-    switch ($env:RUNNER_SCOPE) {
-      org {
-        if ($null -eq $env:ORG_NAME) {
-          Write-Error "ORG_NAME required for JIT configuration with org scope"
-          exit 1
-        }
-        $CONFIG_URL = "https://$GITHUB_HOST/$env:ORG_NAME"
-      }
-      enterprise {
-        if ($null -eq $env:ENTERPRISE_NAME) {
-          Write-Error "ENTERPRISE_NAME required for JIT configuration with enterprise scope"
-          exit 1
-        }
-        $CONFIG_URL = "https://$GITHUB_HOST/enterprises/$env:ENTERPRISE_NAME"
-      }
-      default {
-        if ($null -eq $env:REPO_URL) {
-          Write-Error "REPO_URL required for JIT configuration"
-          exit 1
-        }
-        $CONFIG_URL = $env:REPO_URL
-      }
-    }
+    # Remove access token for security reasons
+    $env:ACCESS_TOKEN=$null
 
-    ./config.cmd --jitconfig $env:JIT_CONFIG --url $CONFIG_URL
+    # Run directly with JIT config - no config.cmd needed
+    ./run.cmd --jitconfig $env:JIT_CONFIG
   } else {
+    Write-Host "Configuring runner: $RUNNER_NAME"
     ./config.cmd --unattended --replace --url $CONFIG_URL --token $RUNNER_TOKEN --name $RUNNER_NAME --labels $LABELS --runnergroup $RUNNER_GROUP $EXTRA_ARGS
+
+    # Remove access token for security reasons
+    $env:ACCESS_TOKEN=$null
+
+    ./run.cmd
   }
-
-  # Remove access token for security reasons
-  $env:ACCESS_TOKEN=$null
-
-  ./run.cmd
 } catch {
   Write-Error $_.Exception.Message
 } finally {
