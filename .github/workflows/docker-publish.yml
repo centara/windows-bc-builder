@@ -7,8 +7,8 @@ name: Docker
 
 on:
   schedule:
-    # Run every Sunday at 00:00 UTC
-    - cron: '0 0 * * 0'
+    # Weekly rebuild; odd time to avoid the Sunday-midnight rush on vendor CDNs
+    - cron: '17 3 * * 0'
   workflow_dispatch:
   push:
     branches: [ "main" ]
@@ -30,6 +30,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      issues: write
       # This is used to complete the identity challenge
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
@@ -37,7 +38,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-        
+
+      # Resolves tool versions/URLs/checksums here rather than inside docker
+      # build, so GitHub API calls are authenticated instead of rate-limited
+      - name: Resolve tool versions
+        run: |
+          ./resolve-tools.ps1
+          $lock = Get-Content tools.lock.json | ConvertFrom-Json
+          "RUNNER_VERSION=$($lock.runner)" >> $env:GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
@@ -49,22 +60,37 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
 
-      # Build and push Docker image with Buildx (don't push on PR)
-      # https://github.com/docker/build-push-action
       - name: Build & Push
-        run: 
-          docker build -t ${{ env.REGISTRY }}/${{ github.repository }}:latest .
-          
+        run:
+          docker build --build-arg RUNNER_VERSION=$env:RUNNER_VERSION -t ${{ env.REGISTRY }}/${{ github.repository }}:latest .
+
       - name: Docker push
-        run: 
+        run:
           docker push ${{ env.REGISTRY }}/${{ github.repository }}:latest
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        
-      - name: Upload artifacts
+
+      # Manifest of exactly which tool versions went into this image
+      - name: Upload tool manifest
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Logs
-          path: C:/ProgramData/chocolatey/logs/
-          retention-days: 10
+          name: tools-lock
+          path: tools.lock.json
+          retention-days: 90
+
+      # Scheduled builds have no human watching them; a red run must not pass
+      # silently (the June 2026 outage went unnoticed for four weeks)
+      - name: Open issue on scheduled failure
+        if: failure() && github.event_name == 'schedule'
+        run: |
+          $title = "Scheduled runner image build failed"
+          $runUrl = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          $existing = gh issue list --repo ${{ github.repository }} --search "`"$title`" in:title" --state open --json number --jq '.[0].number'
+          if ($existing) {
+            gh issue comment $existing --repo ${{ github.repository }} --body "Still failing: $runUrl"
+          } else {
+            gh issue create --repo ${{ github.repository }} --title $title --body "The weekly image rebuild failed. Investigate before the broken/stale image affects builds: $runUrl"
+          }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,7 +2,18 @@
 
 This repository is a Windows version of the [myoung34/docker-github-actions-runner](https://github.com/myoung34/docker-github-actions-runner) runner for Linux. Tried has been to keep the usage as close as possible.
 
-This repository will run the [self-hosted github actions runners](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/hosting-your-own-runners) for Windows with [Visual Studio 2022 buildtools](https://community.chocolatey.org/packages/visualstudio2022buildtools) installed by default.
+This repository will run the [self-hosted github actions runners](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/hosting-your-own-runners) for Windows.
+
+## Included tools
+
+PowerShell 7, Git for Windows (incl. bash), GitHub CLI, Python and the Docker CLI are baked into the image, downloaded directly from each vendor's release channel — not from the Chocolatey community feed, whose throttling repeatedly broke scheduled builds (and once shipped an image without pwsh).
+
+The build works in two steps:
+
+1. `resolve-tools.ps1` runs in the workflow (authenticated GitHub API access via `GH_TOKEN`) and writes `tools.lock.json` with the latest version, download URL and vendor SHA256 for each tool. It also resolves the latest runner version, passed to the build as `RUNNER_VERSION`.
+2. `install-tools.ps1` runs inside `docker build`, downloads each tool with retries, verifies checksums where the vendor publishes them, and installs.
+
+The Dockerfile ends with a smoke test that fails the build if any tool is missing, and each workflow run uploads `tools.lock.json` as an artifact so you can see exactly what shipped. To build locally, run `./resolve-tools.ps1` first (set `GH_TOKEN` to avoid API rate limits), then `docker build`.
 
 ## Environment variables
 
